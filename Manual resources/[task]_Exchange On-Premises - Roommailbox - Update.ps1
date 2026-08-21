@@ -4,13 +4,12 @@ $roomMailboxDisplayName = $form.displayName
 $roomMailboxMailPrefix = $form.mailPrefix
 $roomMailboxMailDomain = $form.mailDomain.id
 $blnSetAsPrimaryEmail = [System.Convert]::ToBoolean($form.blnSetAsPrimaryEmail)
-
 # Build proxy address with appropriate prefix based on whether it should be primary
 if ($blnSetAsPrimaryEmail) {
-    $roomMailboxProxyAddress = "SMTP:$($roomMailboxMailPrefix)@$($roomMailboxMailDomain)"
+   $roomMailboxProxyAddress = "SMTP:$($roomMailboxMailPrefix)@$($roomMailboxMailDomain)"
 }
 else {
-    $roomMailboxProxyAddress = "smtp:$($roomMailboxMailPrefix)@$($roomMailboxMailDomain)"
+   $roomMailboxProxyAddress = "smtp:$($roomMailboxMailPrefix)@$($roomMailboxMailDomain)"
 }
 $roomMailboxAlias = $form.alias
 $roomMailboxCapacity = $form.resourceCapacity
@@ -81,12 +80,12 @@ try {
     }
     Write-Information -Tags "Audit" -MessageData $log
 
-    # Get current email addresses and prepare new email address list, while keeping existing proxy addresses (except the current address if already present)
-    $currentAddresses = $roomMailbox.EmailAddresses
-    $proxyAddresses = @()
+   # Get current email addresses and prepare new email address list, while keeping existing proxy addresses (except the current address if already present)
+   $currentAddresses = $roomMailbox.EmailAddresses
+   $proxyAddresses = @()
 
-    # Extract the email address without prefix for comparison
-    $emailAddressOnly = $roomMailboxProxyAddress -replace '^(smtp|SMTP):', ''
+   # Extract the email address without prefix for comparison
+   $emailAddressOnly = $roomMailboxProxyAddress -replace '^(smtp|SMTP):', ''
        
     foreach ($address in $currentAddresses) {
         # If setting as primary, convert any existing primary SMTP to secondary
@@ -104,14 +103,14 @@ try {
     $actionMessage = "updating shared mailbox"
 
     $updateMailboxParams = @{
-        Identity         = $roomMailbox.Guid
-        DisplayName      = $roomMailboxDisplayName
-        Name             = $roomMailboxDisplayName
+        Identity       = $roomMailbox.Guid
+        DisplayName    = $roomMailboxDisplayName
+        Name           = $roomMailboxDisplayName
         ResourceCapacity = $roomMailboxCapacity
-        EmailAddresses   = $proxyAddresses
-        Alias            = $roomMailboxAlias
-        Confirm          = $false
-        ErrorAction      = 'Stop'
+        EmailAddresses = $proxyAddresses
+        Alias          = $roomMailboxAlias
+        Confirm        = $false
+        ErrorAction    = 'Stop'
     }
 
     $null = Set-Mailbox @updateMailboxParams

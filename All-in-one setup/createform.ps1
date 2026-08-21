@@ -7,7 +7,7 @@ $portalUrl = "https://CUSTOMER.helloid.com"
 $apiKey = "API_KEY"
 $apiSecret = "API_SECRET"
 $delegatedFormAccessGroupNames = @("") #Only unique names are supported. Groups must exist!
-$delegatedFormCategories = @("Exchange On-Premises") #Only unique names are supported. Categories will be created if not exists
+$delegatedFormCategories = @("Exchange Administration","Exchange On-Premises") #Only unique names are supported. Categories will be created if not exists
 $script:debugLogging = $false #Default value: $false. If $true, the HelloID resource GUIDs will be shown in the logging
 $script:duplicateForm = $false #Default value: $false. If $true, the HelloID resource names will be changed to import a duplicate Form
 $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID resource names to generate a duplicate form with different resource names
@@ -21,23 +21,25 @@ $tmpName = @'
 ExchangeConnectionUri
 '@ 
 $tmpValue = @'
+http://vm03T4EJBW2K19/powershell
 '@ 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False" });
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
 #Global variable #2 >> ExchangeAdminPassword
 $tmpName = @'
 ExchangeAdminPassword
 '@ 
 $tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True" });
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
 
 #Global variable #3 >> ExchangeAdminUsername
 $tmpName = @'
 ExchangeAdminUsername
 '@ 
 $tmpValue = @'
+t4ejb\svc_helloid
 '@ 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False" });
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
 
 #make sure write-information logging is visual
@@ -45,16 +47,15 @@ $InformationPreference = "continue"
 
 # Check for prefilled API Authorization header
 if (-not [string]::IsNullOrEmpty($portalApiBasic)) {
-    $script:headers = @{"authorization" = $portalApiBasic }
+    $script:headers = @{"authorization" = $portalApiBasic}
     Write-Information "Using prefilled API credentials"
-}
-else {
+} else {
     # Create authorization headers with HelloID API key
     $pair = "$apiKey" + ":" + "$apiSecret"
     $bytes = [System.Text.Encoding]::ASCII.GetBytes($pair)
     $base64 = [System.Convert]::ToBase64String($bytes)
     $key = "Basic $base64"
-    $script:headers = @{"authorization" = $Key }
+    $script:headers = @{"authorization" = $Key}
     Write-Information "Using manual API credentials"
 }
 
@@ -62,8 +63,7 @@ else {
 if (-not [string]::IsNullOrEmpty($portalBaseUrl)) {
     $script:PortalBaseUrl = $portalBaseUrl
     Write-Information "Using prefilled PortalURL: $script:PortalBaseUrl"
-}
-else {
+} else {
     $script:PortalBaseUrl = $portalUrl
     Write-Information "Using manual PortalURL: $script:PortalBaseUrl"
 }
@@ -74,13 +74,12 @@ $script:PortalBaseUrl = $script:PortalBaseUrl.trim("/") + "/"
 # Make sure to reveive an empty array using PowerShell Core
 function ConvertFrom-Json-WithEmptyArray([string]$jsonString) {
     # Running in PowerShell Core?
-    if ($IsCoreCLR -eq $true) {
+    if($IsCoreCLR -eq $true){
         $r = [Object[]]($jsonString | ConvertFrom-Json -NoEnumerate)
-        return , $r  # Force return value to be an array using a comma
-    }
-    else {
+        return ,$r  # Force return value to be an array using a comma
+    } else {
         $r = [Object[]]($jsonString | ConvertFrom-Json)
-        return , $r  # Force return value to be an array using a comma
+        return ,$r  # Force return value to be an array using a comma
     }
 }
 
@@ -112,13 +111,11 @@ function Invoke-HelloIDGlobalVariable {
             $variableGuid = $response.automationVariableGuid
 
             Write-Information "Variable '$Name' created$(if ($script:debugLogging -eq $true) { ": " + $variableGuid })"
-        }
-        else {
+        } else {
             $variableGuid = $response.automationVariableGuid
             Write-Warning "Variable '$Name' already exists$(if ($script:debugLogging -eq $true) { ": " + $variableGuid })"
         }
-    }
-    catch {
+    } catch {
         Write-Error "Variable '$Name', message: $_"
     }
 }
@@ -138,11 +135,11 @@ function Invoke-HelloIDAutomationTask {
     $TaskName = $TaskName + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
 
     try {
-        $uri = ($script:PortalBaseUrl + "api/v1/automationtasks?search=$TaskName&container=$AutomationContainer")
+        $uri = ($script:PortalBaseUrl +"api/v1/automationtasks?search=$TaskName&container=$AutomationContainer")
         $responseRaw = (Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false) 
-        $response = $responseRaw | Where-Object -filter { $_.name -eq $TaskName }
+        $response = $responseRaw | Where-Object -filter {$_.name -eq $TaskName}
 
-        if ([string]::IsNullOrEmpty($response.automationTaskGuid) -or $ForceCreateTask -eq $true) {
+        if([string]::IsNullOrEmpty($response.automationTaskGuid) -or $ForceCreateTask -eq $true) {
             #Create Task
 
             $body = @{
@@ -155,19 +152,17 @@ function Invoke-HelloIDAutomationTask {
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
 
-            $uri = ($script:PortalBaseUrl + "api/v1/automationtasks/powershell")
+            $uri = ($script:PortalBaseUrl +"api/v1/automationtasks/powershell")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
             $taskGuid = $response.automationTaskGuid
 
             Write-Information "Powershell task '$TaskName' created$(if ($script:debugLogging -eq $true) { ": " + $taskGuid })"
-        }
-        else {
+        } else {
             #Get TaskGUID
             $taskGuid = $response.automationTaskGuid
             Write-Warning "Powershell task '$TaskName' already exists$(if ($script:debugLogging -eq $true) { ": " + $taskGuid })"
         }
-    }
-    catch {
+    } catch {
         Write-Error "Powershell task '$TaskName', message: $_"
     }
 
@@ -189,18 +184,18 @@ function Invoke-HelloIDDatasource {
 
     $DatasourceName = $DatasourceName + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
 
-    $datasourceTypeName = switch ($DatasourceType) { 
-        "1" { "Native data source"; break } 
-        "2" { "Static data source"; break } 
-        "3" { "Task data source"; break } 
-        "4" { "Powershell data source"; break }
+    $datasourceTypeName = switch($DatasourceType) { 
+        "1" { "Native data source"; break} 
+        "2" { "Static data source"; break} 
+        "3" { "Task data source"; break} 
+        "4" { "Powershell data source"; break}
     }
 
     try {
-        $uri = ($script:PortalBaseUrl + "api/v1/datasource/named/$DatasourceName")
+        $uri = ($script:PortalBaseUrl +"api/v1/datasource/named/$DatasourceName")
         $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
     
-        if ([string]::IsNullOrEmpty($response.dataSourceGUID)) {
+        if([string]::IsNullOrEmpty($response.dataSourceGUID)) {
             #Create DataSource
             $body = @{
                 name               = $DatasourceName;
@@ -214,19 +209,17 @@ function Invoke-HelloIDDatasource {
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
     
-            $uri = ($script:PortalBaseUrl + "api/v1/datasource")
+            $uri = ($script:PortalBaseUrl +"api/v1/datasource")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
             
             $datasourceGuid = $response.dataSourceGUID
             Write-Information "$datasourceTypeName '$DatasourceName' created$(if ($script:debugLogging -eq $true) { ": " + $datasourceGuid })"
-        }
-        else {
+        } else {
             #Get DatasourceGUID
             $datasourceGuid = $response.dataSourceGUID
             Write-Warning "$datasourceTypeName '$DatasourceName' already exists$(if ($script:debugLogging -eq $true) { ": " + $datasourceGuid })"
         }
-    }
-    catch {
+    } catch {
         Write-Error "$datasourceTypeName '$DatasourceName', message: $_"
     }
 
@@ -244,14 +237,13 @@ function Invoke-HelloIDDynamicForm {
 
     try {
         try {
-            $uri = ($script:PortalBaseUrl + "api/v1/forms/$FormName")
+            $uri = ($script:PortalBaseUrl +"api/v1/forms/$FormName")
             $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
-        }
-        catch {
+        } catch {
             $response = $null
         }
 
-        if (([string]::IsNullOrEmpty($response.dynamicFormGUID)) -or ($response.isUpdated -eq $true)) {
+        if(([string]::IsNullOrEmpty($response.dynamicFormGUID)) -or ($response.isUpdated -eq $true)) {
             #Create Dynamic form
             $body = @{
                 Name       = $FormName;
@@ -259,18 +251,16 @@ function Invoke-HelloIDDynamicForm {
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
 
-            $uri = ($script:PortalBaseUrl + "api/v1/forms")
+            $uri = ($script:PortalBaseUrl +"api/v1/forms")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
 
             $formGuid = $response.dynamicFormGUID
             Write-Information "Dynamic form '$formName' created$(if ($script:debugLogging -eq $true) { ": " + $formGuid })"
-        }
-        else {
+        } else {
             $formGuid = $response.dynamicFormGUID
             Write-Warning "Dynamic form '$FormName' already exists$(if ($script:debugLogging -eq $true) { ": " + $formGuid })"
         }
-    }
-    catch {
+    } catch {
         Write-Error "Dynamic form '$FormName', message: $_"
     }
 
@@ -294,14 +284,13 @@ function Invoke-HelloIDDelegatedForm {
 
     try {
         try {
-            $uri = ($script:PortalBaseUrl + "api/v1/delegatedforms/$DelegatedFormName")
+            $uri = ($script:PortalBaseUrl +"api/v1/delegatedforms/$DelegatedFormName")
             $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
-        }
-        catch {
+        } catch {
             $response = $null
         }
 
-        if ([string]::IsNullOrEmpty($response.delegatedFormGUID)) {
+        if([string]::IsNullOrEmpty($response.delegatedFormGUID)) {
             #Create DelegatedForm
             $body = @{
                 name            = $DelegatedFormName;
@@ -311,14 +300,14 @@ function Invoke-HelloIDDelegatedForm {
                 faIcon          = $FaIcon;
                 task            = ConvertFrom-Json -inputObject $task;
             }
-            if (-not[String]::IsNullOrEmpty($AccessGroups)) { 
+            if(-not[String]::IsNullOrEmpty($AccessGroups)) { 
                 $body += @{
-                    accessGroups = (ConvertFrom-Json-WithEmptyArray($AccessGroups));
+                    accessGroups    = (ConvertFrom-Json-WithEmptyArray($AccessGroups));
                 }
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
 
-            $uri = ($script:PortalBaseUrl + "api/v1/delegatedforms")
+            $uri = ($script:PortalBaseUrl +"api/v1/delegatedforms")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
 
             $delegatedFormGuid = $response.delegatedFormGUID
@@ -326,17 +315,15 @@ function Invoke-HelloIDDelegatedForm {
             $delegatedFormCreated = $true
 
             $bodyCategories = $Categories
-            $uri = ($script:PortalBaseUrl + "api/v1/delegatedforms/$delegatedFormGuid/categories")
+            $uri = ($script:PortalBaseUrl +"api/v1/delegatedforms/$delegatedFormGuid/categories")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $bodyCategories
             Write-Information "Delegated form '$DelegatedFormName' updated with categories"
-        }
-        else {
+        } else {
             #Get delegatedFormGUID
             $delegatedFormGuid = $response.delegatedFormGUID
             Write-Warning "Delegated form '$DelegatedFormName' already exists$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormGuid })"
         }
-    }
-    catch {
+    } catch {
         Write-Error "Delegated form '$DelegatedFormName', message: $_"
     }
 
@@ -346,13 +333,13 @@ function Invoke-HelloIDDelegatedForm {
 
 <# Begin: HelloID Global Variables #>
 foreach ($item in $globalHelloIDVariables) {
-    Invoke-HelloIDGlobalVariable -Name $item.name -Value $item.value -Secret $item.secret 
+	Invoke-HelloIDGlobalVariable -Name $item.name -Value $item.value -Secret $item.secret 
 }
 <# End: HelloID Global Variables #>
 
 
 <# Begin: HelloID Data sources #>
-<# Begin: DataSource "Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-EmailAddress-Unique" #>
+<# Begin: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-EmailAddress-Unique" #>
 $tmpPsScript = @'
 # variables configured in form
 $mailbox = $datasource.selectedMailbox
@@ -504,12 +491,12 @@ $tmpInput = @'
 '@ 
 $dataSourceGuid_3 = [PSCustomObject]@{} 
 $dataSourceGuid_3_Name = @'
-Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-EmailAddress-Unique
+exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-EmailAddress-Unique
 '@ 
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_3_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "False" -returnObject ([Ref]$dataSourceGuid_3) 
-<# End: DataSource "Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-EmailAddress-Unique" #>
+<# End: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-EmailAddress-Unique" #>
 
-<# Begin: DataSource "Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-DisplayName-Unique" #>
+<# Begin: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-DisplayName-Unique" #>
 $tmpPsScript = @'
 # variables configured in form
 $mailbox = $datasource.selectedMailbox
@@ -659,12 +646,12 @@ $tmpInput = @'
 '@ 
 $dataSourceGuid_1 = [PSCustomObject]@{} 
 $dataSourceGuid_1_Name = @'
-Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-DisplayName-Unique
+exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-DisplayName-Unique
 '@ 
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_1_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "False" -returnObject ([Ref]$dataSourceGuid_1) 
-<# End: DataSource "Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-DisplayName-Unique" #>
+<# End: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-DisplayName-Unique" #>
 
-<# Begin: DataSource "Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Get-All-MailDomains" #>
+<# Begin: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Get-All-MailDomains" #>
 $tmpPsScript = @'
 # variables configured in form
 $mailboxMailDomain = $datasource.mailDomain
@@ -794,12 +781,12 @@ $tmpInput = @'
 '@ 
 $dataSourceGuid_2 = [PSCustomObject]@{} 
 $dataSourceGuid_2_Name = @'
-Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Get-All-MailDomains
+exchange-on-premises-roommailbox-update | Exchange-On-Premises-Get-All-MailDomains
 '@ 
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_2_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "False" -returnObject ([Ref]$dataSourceGuid_2) 
-<# End: DataSource "Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Get-All-MailDomains" #>
+<# End: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Get-All-MailDomains" #>
 
-<# Begin: DataSource "Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-Alias-Unique" #>
+<# Begin: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-Alias-Unique" #>
 $tmpPsScript = @'
 # variables configured in form
 $mailbox = $datasource.selectedMailbox
@@ -950,10 +937,10 @@ $tmpInput = @'
 '@ 
 $dataSourceGuid_4 = [PSCustomObject]@{} 
 $dataSourceGuid_4_Name = @'
-Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-Alias-Unique
+exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-Alias-Unique
 '@ 
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_4_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "False" -returnObject ([Ref]$dataSourceGuid_4) 
-<# End: DataSource "Exchange On-Premises - Roommailbox - Update exchange-on-premises-sharedmailbox-update | Exchange-On-Premises-Check-Alias-Unique" #>
+<# End: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Check-Alias-Unique" #>
 
 <# Begin: DataSource "exchange-on-premises-roommailbox-update | Exchange-On-Premises-Get-Roommailbox-Wildcard-Name-Alias" #>
 $tmpPsScript = @'
@@ -1099,7 +1086,7 @@ Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_0_Name -DatasourceType 
 
 <# Begin: Dynamic Form "Exchange On-Premises - Roommailbox - Update" #>
 $tmpSchema = @"
-[{"label":"Search Roommailbox","fields":[{"key":"searchMailbox","templateOptions":{"label":"Search Roommailbox","required":true},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"gridmailbox","templateOptions":{"label":"Select Roommailbox","required":true,"grid":{"columns":[{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Primary Smtp Address","field":"PrimarySmtpAddress"},{"headerName":"Email Addresses","field":"EmailAddresses"},{"headerName":"Alias","field":"Alias"},{"headerName":"ResourceCapacity","field":"ResourceCapacity"},{"headerName":"Recipient Type Details","field":"RecipientTypeDetails"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"searchValue","otherFieldValue":{"otherFieldKey":"searchMailbox"}}]}},"useFilter":true,"useDefault":false,"allowCsvDownload":true},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Update mailbox","fields":[{"key":"displayName","templateOptions":{"label":"Displayname","useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"Name","required":true,"placeholder":"IT department","pattern":"^[A-Za-z0-9�?-ÿ .,_\\u0027-]{1,256}$","minLength":1,"maxLength":256},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"nameValidation","templateOptions":{"label":"Display name validation","readonly":true,"placeholder":"Display name will be validated on uniqnueness in Exchange On-Premises","required":true,"pattern":"^Valid.*","useDependOn":false,"dependOn":"searchMailbox","useDataSource":true,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"displayName","otherFieldValue":{"otherFieldKey":"displayName"}},{"propertyName":"selectedMailbox","otherFieldValue":{"otherFieldKey":"gridmailbox"}}]}},"displayField":"output"},"hideExpression":"!model[\"displayName\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"resourceCapacity","templateOptions":{"label":"Resource Capacity","required":true,"pattern":"\\d+","minLength":1,"useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"ResourceCapacity"},"validation":{"messages":{"pattern":"Number of 1 or higher is required"}},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"templateOptions":{"title":"This field shows the mailbox\u0027s current primary email address","titleField":"","bannerType":"Info","useBody":false},"type":"textbanner","summaryVisibility":"Hide element","body":"Text Banner Content","requiresTemplateOptions":false,"requiresKey":false,"requiresDataSource":false},{"key":"formRow","templateOptions":{},"fieldGroup":[{"key":"mailPrefix","templateOptions":{"label":"Email address","useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"mailPrefix","required":true,"placeholder":"it-department","pattern":"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$","minLength":1,"maxLength":200},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"mailDomain","templateOptions":{"label":"Mail domain","required":true,"useObjects":false,"useDataSource":true,"useFilter":false,"options":["Option 1","Option 2","Option 3"],"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_2","input":{"propertyInputs":[{"propertyName":"mailDomain","otherFieldValue":{"otherFieldKey":"gridmailbox"}}]}},"valueField":"Id","textField":"Id","useDefault":true,"defaultSelectorProperty":"Id"},"type":"dropdown","summaryVisibility":"Show","textOrLabel":"text","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}],"type":"formrow","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"blnSetAsPrimaryEmail","templateOptions":{"label":"Set as primary email address?","useSwitch":true,"checkboxLabel":"Set as primary email address"},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"mailValidation","templateOptions":{"label":"Email address validation","placeholder":"Email address will be validated on uniqnueness in Exchange On-Premises","pattern":"^Valid.*","readonly":true,"useDataSource":true,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_3","input":{"propertyInputs":[{"propertyName":"mailPrefix","otherFieldValue":{"otherFieldKey":"mailPrefix"}},{"propertyName":"mailDomain","otherFieldValue":{"otherFieldKey":"mailDomain"}},{"propertyName":"selectedMailbox","otherFieldValue":{"otherFieldKey":"gridmailbox"}}]}},"displayField":"output"},"hideExpression":"!model[\"mailPrefix\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"templateOptions":{"title":"The alias (mailNickname) is a short name used as an internal identifier for the mailbox","titleField":"","bannerType":"Info","useBody":true},"type":"textbanner","summaryVisibility":"Hide element","body":"It is *not* the same as any of the mailbox�s email addresses.  \r\nChanging the alias does **not** automatically update the primary or secondary SMTP addresses.\r\n\r\nThe alias can only have **one** value.  \r\nIf you change it, the previous alias is simply overwritten and will not be stored as an additional address.\r\n\r\nIf you do not provide an alias, the username from the email address will be used automatically.\r\n\r\nUse only letters, numbers, and periods (no spaces).  \r\nDo not include a domain (no \"@\").","requiresTemplateOptions":false,"requiresKey":false,"requiresDataSource":false},{"key":"alias","templateOptions":{"label":"Alias","useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"Alias","required":true,"placeholder":"it-dep","pattern":"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"aliasValidation","templateOptions":{"label":"Alias validation","placeholder":"Alias will be validated on uniqnueness in Exchange On-Premises","useDataSource":true,"pattern":"^Valid.*","readonly":true,"useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"Alias","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_4","input":{"propertyInputs":[{"propertyName":"alias","otherFieldValue":{"otherFieldKey":"alias"}},{"propertyName":"mailDomain","otherFieldValue":{"otherFieldKey":"mailDomain"}},{"propertyName":"selectedMailbox","otherFieldValue":{"otherFieldKey":"gridmailbox"}}]}},"displayField":"output"},"hideExpression":"!model[\"alias\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
+[{"label":"Search Roommailbox","fields":[{"key":"searchMailbox","templateOptions":{"label":"Search Roommailbox","required":true},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"gridmailbox","templateOptions":{"label":"Select Roommailbox","required":true,"grid":{"columns":[{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Primary Smtp Address","field":"PrimarySmtpAddress"},{"headerName":"Email Addresses","field":"EmailAddresses"},{"headerName":"Alias","field":"Alias"},{"headerName":"ResourceCapacity","field":"ResourceCapacity"},{"headerName":"Recipient Type Details","field":"RecipientTypeDetails"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"searchValue","otherFieldValue":{"otherFieldKey":"searchMailbox"}}]}},"useFilter":true,"useDefault":false,"allowCsvDownload":true},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Update mailbox","fields":[{"key":"displayName","templateOptions":{"label":"Displayname","useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"Name","required":true,"placeholder":"IT department","pattern":"^[A-Za-z0-9�?-ÿ .,_\\u0027-]{1,256}$","minLength":1,"maxLength":256},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"nameValidation","templateOptions":{"label":"Display name validation","readonly":true,"placeholder":"Display name will be validated on uniqnueness in Exchange On-Premises","required":true,"pattern":"^Valid.*","useDependOn":false,"dependOn":"searchMailbox","useDataSource":true,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"displayName","otherFieldValue":{"otherFieldKey":"displayName"}},{"propertyName":"selectedMailbox","otherFieldValue":{"otherFieldKey":"gridmailbox"}}]}},"displayField":"output"},"hideExpression":"!model[\"displayName\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"resourceCapacity","templateOptions":{"label":"Resource Capacity","required":true,"pattern":"\\d+","minLength":1,"useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"ResourceCapacity"},"validation":{"messages":{"pattern":"Number of 1 or higher is required"}},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"templateOptions":{"title":"This field shows the mailbox\u0027s current primary email address","titleField":"","bannerType":"Info","useBody":false},"type":"textbanner","summaryVisibility":"Hide element","body":"Text Banner Content","requiresTemplateOptions":false,"requiresKey":false,"requiresDataSource":false},{"key":"formRow","templateOptions":{},"fieldGroup":[{"key":"mailPrefix","templateOptions":{"label":"Email address","useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"mailPrefix","required":true,"placeholder":"it-department","pattern":"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$","minLength":1,"maxLength":200},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"mailDomain","templateOptions":{"label":"Mail domain","required":true,"useObjects":false,"useDataSource":true,"useFilter":false,"options":["Option 1","Option 2","Option 3"],"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_2","input":{"propertyInputs":[{"propertyName":"mailDomain","otherFieldValue":{"otherFieldKey":"gridmailbox"}}]}},"valueField":"Id","textField":"Id","useDefault":true,"defaultSelectorProperty":"Id"},"type":"dropdown","summaryVisibility":"Show","textOrLabel":"text","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}],"type":"formrow","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"blnSetAsPrimaryEmail","templateOptions":{"label":"Set as primary email address?","useSwitch":true,"checkboxLabel":"Set as primary email address"},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"mailValidation","templateOptions":{"label":"Email address validation","placeholder":"Email address will be validated on uniqnueness in Exchange On-Premises","pattern":"^Valid.*","readonly":true,"useDataSource":true,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_3","input":{"propertyInputs":[{"propertyName":"mailPrefix","otherFieldValue":{"otherFieldKey":"mailPrefix"}},{"propertyName":"mailDomain","otherFieldValue":{"otherFieldKey":"mailDomain"}},{"propertyName":"selectedMailbox","otherFieldValue":{"otherFieldKey":"gridmailbox"}}]}},"displayField":"output"},"hideExpression":"!model[\"mailPrefix\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"templateOptions":{"title":"The alias (mailNickname) is a short name used as an internal identifier for the mailbox","titleField":"","bannerType":"Info","useBody":true},"type":"textbanner","summaryVisibility":"Hide element","body":"It is *not* the same as any of the mailbox�s email addresses.  \r\nChanging the alias does **not** automatically update the primary or secondary SMTP addresses.\r\n\r\nThe alias can only have **one** value.  \r\nIf you change it, the previous alias is simply overwritten and will not be stored as an additional address.\r\n\r\nIf you do not provide an alias, the username from the email address will be used automatically.\r\n\r\nUse only letters, numbers, and periods (no spaces).  \r\nDo not include a domain (no \"@\").","requiresTemplateOptions":false,"requiresKey":false,"requiresDataSource":false},{"key":"alias","templateOptions":{"label":"Alias","useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"Alias","required":true,"placeholder":"it-dep","pattern":"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"aliasValidation","templateOptions":{"label":"Alias validation","placeholder":"Alias will be validated on uniqnueness in Exchange On-Premises","useDataSource":true,"pattern":"^Valid.*","readonly":true,"useDependOn":true,"dependOn":"gridmailbox","dependOnProperty":"Alias","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_4","input":{"propertyInputs":[{"propertyName":"alias","otherFieldValue":{"otherFieldKey":"alias"}},{"propertyName":"mailDomain","otherFieldValue":{"otherFieldKey":"mailDomain"}},{"propertyName":"selectedMailbox","otherFieldValue":{"otherFieldKey":"gridmailbox"}}]}},"displayField":"output"},"hideExpression":"!model[\"alias\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
 "@ 
 
 $dynamicFormGuid = [PSCustomObject]@{} 
@@ -1111,45 +1098,43 @@ Invoke-HelloIDDynamicForm -FormName $dynamicFormName -FormSchema $tmpSchema  -re
 
 <# Begin: Delegated Form Access Groups and Categories #>
 $delegatedFormAccessGroupGuids = @()
-if (-not[String]::IsNullOrEmpty($delegatedFormAccessGroupNames)) {
-    foreach ($group in $delegatedFormAccessGroupNames) {
+if(-not[String]::IsNullOrEmpty($delegatedFormAccessGroupNames)){
+    foreach($group in $delegatedFormAccessGroupNames) {
         try {
-            $uri = ($script:PortalBaseUrl + "api/v1/groups/$group")
+            $uri = ($script:PortalBaseUrl +"api/v1/groups/$group")
             $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
             $delegatedFormAccessGroupGuid = $response.groupGuid
             $delegatedFormAccessGroupGuids += $delegatedFormAccessGroupGuid
         
             Write-Information "HelloID (access)group '$group' successfully found$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormAccessGroupGuid })"
-        }
-        catch {
+        } catch {
             Write-Error "HelloID (access)group '$group', message: $_"
         }
     }
-    if ($null -ne $delegatedFormAccessGroupGuids) {
+    if($null -ne $delegatedFormAccessGroupGuids){
         $delegatedFormAccessGroupGuids = ($delegatedFormAccessGroupGuids | Select-Object -Unique | ConvertTo-Json -Depth 100 -Compress)
     }
 }
 
 $delegatedFormCategoryGuids = @()
-foreach ($category in $delegatedFormCategories) {
+foreach($category in $delegatedFormCategories) {
     try {
-        $uri = ($script:PortalBaseUrl + "api/v1/delegatedformcategories/$category")
+        $uri = ($script:PortalBaseUrl +"api/v1/delegatedformcategories/$category")
         $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
-        $response = $response | Where-Object { $_.name.en -eq $category }
+        $response = $response | Where-Object {$_.name.en -eq $category}
     
         $tmpGuid = $response.delegatedFormCategoryGuid
         $delegatedFormCategoryGuids += $tmpGuid
     
         Write-Information "HelloID Delegated Form category '$category' successfully found$(if ($script:debugLogging -eq $true) { ": " + $tmpGuid })"
-    }
-    catch {
+    } catch {
         Write-Warning "HelloID Delegated Form category '$category' not found"
         $body = @{
-            name = @{"en" = $category };
+            name = @{"en" = $category};
         }
         $body = ConvertTo-Json -InputObject $body -Depth 100
 
-        $uri = ($script:PortalBaseUrl + "api/v1/delegatedformcategories")
+        $uri = ($script:PortalBaseUrl +"api/v1/delegatedformcategories")
         $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
         $tmpGuid = $response.delegatedFormCategoryGuid
         $delegatedFormCategoryGuids += $tmpGuid
@@ -1161,7 +1146,7 @@ $delegatedFormCategoryGuids = (ConvertTo-Json -InputObject $delegatedFormCategor
 <# End: Delegated Form Access Groups and Categories #>
 
 <# Begin: Delegated Form #>
-$delegatedFormRef = [PSCustomObject]@{guid = $null; created = $null } 
+$delegatedFormRef = [PSCustomObject]@{guid = $null; created = $null} 
 $delegatedFormName = @'
 Exchange On-Premises - Roommailbox - Update
 '@
