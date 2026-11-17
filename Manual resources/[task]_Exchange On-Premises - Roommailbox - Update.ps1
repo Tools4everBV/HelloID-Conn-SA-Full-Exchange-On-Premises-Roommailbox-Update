@@ -3,7 +3,7 @@ $roomMailbox = $form.gridmailbox
 $roomMailboxDisplayName = $form.displayName
 $roomMailboxMailPrefix = $form.mailPrefix
 $roomMailboxMailDomain = $form.mailDomain.id
-$blnSetAsPrimaryEmail = [System.Convert]::ToBoolean($form.blnSetAsPrimaryEmail)
+$blnSetAsPrimaryEmail = if ([string]::IsNullOrWhiteSpace($form.blnSetAsPrimaryEmail)) { $false } else { [System.Convert]::ToBoolean($form.blnSetAsPrimaryEmail) }
 # Build proxy address with appropriate prefix based on whether it should be primary
 if ($blnSetAsPrimaryEmail) {
    $roomMailboxProxyAddress = "SMTP:$($roomMailboxMailPrefix)@$($roomMailboxMailDomain)"
